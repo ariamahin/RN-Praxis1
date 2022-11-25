@@ -1,62 +1,49 @@
-#include <sys/types.h>
+
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <netinet/in.h>
+#include <string.h>
 
-// erstellen der Serverstruktur
-struct Server{
-    int port;
-};
+#define BACKLOG 10
+#define MYPORT "1234"
 
 
 int main(int argc, char** argv) {
 
     // Start here :)
-    int port = port; //port wird von Client übergeben(Aufgabenstellung)
 
-    // Create socket:af: address Family, type: specification for the new socket, protocol
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-
-
-    // Construct local address structure
+    struct addrinfo hints, *res;
+    socklen_t address_length;
     struct sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(8000);//port wird von Client übergeben(Aufgabenstellung)
-    serverAddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype= SOCK_STREAM;
+    hints.ai_flags= AI_PASSIVE;
 
-    //teste ob server verbunden ist --> sonst verlasse mit 1 (standart Fehlerrückgabe)
-    if(serverSocket == 0){
-        perror("Failes to connect socket...\n");
-        exit(1);
-    }
+    getaddrinfo(NULL, MYPORT, &hints, &res);
 
-    // binde mit server --> teste ob Rückgabe von bind kleiner 0 (-1) dann error
-    if(bind(serverSocket, (struct sockaddr*) &serverAddress,sizeof(serverAddress)) < 0){
-        perror("Failed to bind \n");
-        exit(1); // exit mit 1
-    }
+    int serverSocket = socket(res ->ai_family, res ->ai_socktype, res->ai_protocol);
 
-    //höre client zu
-    // zweiter int gibt an wie viele sich anstellen, hier erstmal von mir auf 10
-    //festgelegt bis weiteres bekannt
-    // + test (listen gibt bei fail auch -1 zurück)
-    if((listen(serverSocket,10)) < 0){
-        perror("Failed to listen...\n");
-        exit(1);
-    }
-    // den server akzeptieren
-    char buffer[3000];
-    int address_length= sizeof(serverAddress);
-    accept(serverSocket,(struct sockaddr* ) &serverAddress,(socklen_t *)&address_length);
-    printf("%s\n",buffer);
+    bind(serverSocket, res->ai_addr, res->ai_addrlen);
 
+    connect(serverSocket, res->ai_addr, res->ai_addrlen);
+
+    listen(serverSocket, BACKLOG);
+
+    address_length= sizeof(serverAddress);
+
+    int new_server= accept(serverSocket,(struct sockaddr* ) &serverAddress,(socklen_t *)&address_length);
+
+    char *msg = "Reply\n";
+    int len, bytes_sent;
+
+    len= strlen(msg);
+    bytes_sent = send(new_server,msg,len, 0);
 
     return EXIT_SUCCESS;
 };
-
 
     // Listen on the socket
     //int listening = listen(serverSocket, backlog);
@@ -69,5 +56,5 @@ int main(int argc, char** argv) {
    // while(1) {
      //   clientSocket = accept(serverSocket, NULL, NULL);
       //  send(clientSocket, httpHeader, sizeof(httpHeader), 0);
-        //close(clientSocket);
+        //close(clientSo
 
