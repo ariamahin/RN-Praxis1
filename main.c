@@ -1,63 +1,64 @@
+//webserver with tcp socket port number as argument when recieving packet answer with string "reply" to client, when recieving http packet answer with String “Reply”
+//gcc webserver.c -o webserver
+//./webserver 5000
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <unistd.h>
-#include <arpa/inet.h>
 
-int main(int argc, char **argv){
-
-    char *ip = "127.0.0.1";
-    int port = 5566;
-    sscanf (argv[1],"%d",&port);
-
-    int server_sock, client_sock;
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t addr_size;
-    char buffer[1024];
+int main(int argc, char *argv[]) {
+    int sockfd, newsockfd, portno, clilen;
+    char buffer[256];
+    struct sockaddr_in serv_addr, cli_addr;
     int n;
-    //printf("Portnummer: ");
-    //scanf("%d",&port);
-
-    server_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sock < 0){
-        perror("[-]Socket error");
+    if (argc < 2) {
+        fprintf(stderr,"ERROR, no port provided");
         exit(1);
     }
-    printf("[+]TCP server socket created.\n");
-
-    memset(&server_addr, '\0', sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = port;
-    server_addr.sin_addr.s_addr = inet_addr(ip);
-
-    n = bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    if (n < 0){
-        perror("[-]Bind error");
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("ERROR opening socket");
         exit(1);
     }
-    printf("[+]Bind to the port number: %d\n", port);
-
-    listen(server_sock, 5);
-    printf("Listening...\n");
-
-    while(1){
-        addr_size = sizeof(client_addr);
-        client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
-        printf("[+]Client connected.\n");
-
-        bzero(buffer, 1024);
-        recv(client_sock, buffer, sizeof(buffer), 0);
-        printf("Client: %s\n", buffer);
-
-        bzero(buffer, 1024);
-        strcpy(buffer, "HI, THIS IS SERVER. HAVE A NICE DAY!!!");
-        printf("Server: %s\n", buffer);
-        send(client_sock, buffer, strlen(buffer), 0);
-
-        close(client_sock);
-        printf("[+]Client disconnected.\n\n");
-
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    portno = atoi(argv[1]);
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+    serv_addr.sin_port = htons(portno);
+    if (bind(sockfd, (struct sockaddr *) &serv_addr,
+             sizeof(serv_addr)) < 0) {
+        perror("ERROR on binding");
+        exit(1);
     }
-
+    listen(sockfd,5);
+    clilen = sizeof(cli_addr);
+    newsockfd = accept(sockfd,
+                       (struct sockaddr *) &cli_addr,
+                       &clilen);
+    if (newsockfd < 0) {
+        perror("ERROR on accept");
+        exit(1);
+    }
+    bzero(buffer,256);
+    n = read(newsockfd,buffer,255);
+    if (n < 0) {
+        perror("ERROR reading from socket");
+        exit(1);
+    }
+    printf("Here is the message: %s",buffer);
+    n = write(newsockfd,"reply",5);
+    if (n < 0) {
+        perror("ERROR writing to socket");
+        exit(1);
+    }
     return 0;
 }
+
+// Path: client.c
+//client with tcp socket port number as argument
+//gcc client.c -o client
+//./client
